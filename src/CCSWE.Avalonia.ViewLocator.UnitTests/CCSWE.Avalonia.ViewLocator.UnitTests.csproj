@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>false</IsPublishable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CCSWE.Avalonia.ViewLocator\CCSWE.Avalonia.ViewLocator.csproj" />
+    <ProjectReference Include="..\CCSWE.Avalonia.ViewLocator.Generator\CCSWE.Avalonia.ViewLocator.Generator.csproj" />
+  </ItemGroup>
+
+</Project>

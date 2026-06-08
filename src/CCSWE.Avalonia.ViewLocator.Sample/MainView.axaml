@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:ViewLocatorSample"
+             x:Class="ViewLocatorSample.MainView"
+             x:DataType="vm:MainViewModel">
+
+    <StackPanel Margin="32" Spacing="12" VerticalAlignment="Center">
+        <TextBlock Classes="HeadlineSmall" Text="CCSWE.Avalonia.ViewLocator"/>
+        <TextBlock Classes="BodyMedium" TextWrapping="Wrap" Text="{Binding Greeting}"/>
+    </StackPanel>
+
+</UserControl>

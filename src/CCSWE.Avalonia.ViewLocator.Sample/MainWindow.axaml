@@ -1,0 +1,12 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ViewLocatorSample"
+        x:Class="ViewLocatorSample.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Width="520" Height="320"
+        Title="CCSWE.Avalonia.ViewLocator sample"
+        WindowStartupLocation="CenterScreen">
+
+    <ContentControl Content="{Binding}"/>
+
+</Window>
