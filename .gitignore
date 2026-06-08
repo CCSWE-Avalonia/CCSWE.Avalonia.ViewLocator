@@ -358,5 +358,5 @@ MigrationBackup/
 # Test results
 TestResults/
 
-# Consumer -> design-system feedback (internal round-trip notes; not published)
-eng/ds-feedback/
+# Verify — received snapshots are transient; verified snapshots are committed
+*.received.*

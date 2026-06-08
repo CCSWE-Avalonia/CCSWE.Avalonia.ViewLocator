@@ -7,10 +7,18 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" VersionOverride="4.12.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="Verify.NUnit" />
+    <PackageReference Include="Verify.SourceGenerators" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Verify.NUnit auto-adds a global "using static VerifyNUnit.Verifier" that shadows NUnit's Throws;
+         drop it and import Verify explicitly in the files that use it. -->
+    <Using Remove="VerifyNUnit.Verifier" />
   </ItemGroup>
 
   <ItemGroup>
