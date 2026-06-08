@@ -1,7 +1,9 @@
 # CCSWE.Avalonia.ViewLocator
 
-[![Build, test, and publish](https://github.com/CCSWE-Avalonia/CCSWE.Avalonia.ViewLocator/actions/workflows/dotnet-build-publish-library.yml/badge.svg)](https://github.com/CCSWE-Avalonia/CCSWE.Avalonia.ViewLocator/actions/workflows/dotnet-build-publish-library.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE.md)
+[![Build](https://img.shields.io/github/actions/workflow/status/CCSWE-Avalonia/CCSWE.Avalonia.ViewLocator/dotnet-build-publish-library.yml?branch=master&label=build)](https://github.com/CCSWE-Avalonia/CCSWE.Avalonia.ViewLocator/actions/workflows/dotnet-build-publish-library.yml)
+[![NuGet](https://img.shields.io/nuget/v/CCSWE.Avalonia.ViewLocator.svg)](https://www.nuget.org/packages/CCSWE.Avalonia.ViewLocator)
+[![Downloads](https://img.shields.io/nuget/dt/CCSWE.Avalonia.ViewLocator.svg)](https://www.nuget.org/packages/CCSWE.Avalonia.ViewLocator)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 
 A **compile-time, AOT/trim-safe Avalonia `ViewLocator`**. A Roslyn source generator maps each
 `XxxViewModel` to its `XxxView` **by same-namespace naming convention** and resolves the view from your
