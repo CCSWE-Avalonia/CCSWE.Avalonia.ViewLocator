@@ -5,6 +5,7 @@ using System.Linq;
 using CCSWE.Avalonia.ViewLocator.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using NUnit.Framework;
 
 namespace CCSWE.Avalonia.ViewLocator.UnitTests;
 
@@ -12,23 +13,46 @@ internal static class GeneratorTestHelper
 {
     private static readonly IReadOnlyList<MetadataReference> References = BuildReferences();
 
-    public static GeneratorDriver CreateDriver(bool trackSteps = false) =>
-        CSharpGeneratorDriver.Create(
-            generators: [new ViewLocatorGenerator().AsSourceGenerator()],
-            driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: trackSteps));
+    public static IReadOnlyList<string> DiagnosticIds(this GeneratorDriver driver) =>
+        driver.GetRunResult().Diagnostics.Select(diagnostic => diagnostic.Id).ToList();
 
-    public static CSharpCompilation CreateCompilation(string source) =>
-        CSharpCompilation.Create(
-            "Tests",
-            [CSharpSyntaxTree.ParseText(source)],
-            References,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+    public static string GeneratedSource(this GeneratorDriver driver) =>
+        driver.GetRunResult().GeneratedTrees.FirstOrDefault()?.ToString() ?? string.Empty;
 
-    public static (string Source, IReadOnlyList<Diagnostic> Diagnostics) Run(string source)
+    public static GeneratorDriver Run(string source)
     {
-        var result = CreateDriver().RunGenerators(CreateCompilation(source)).GetRunResult();
-        var tree = result.GeneratedTrees.FirstOrDefault();
-        return (tree?.ToString() ?? string.Empty, result.Diagnostics);
+        var compilation = CreateCompilation(source);
+        var driver = CreateDriver().RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
+
+        AssertGeneratedCodeCompiles(output);
+        AssertTargetStepIsCachedAcrossUnrelatedEdit(driver, compilation);
+
+        return driver;
+    }
+
+    private static void AssertGeneratedCodeCompiles(Compilation compilation) =>
+        Assert.That(
+            compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),
+            Is.Empty,
+            "Generated code should compile without errors.");
+
+    private static void AssertTargetStepIsCachedAcrossUnrelatedEdit(GeneratorDriver driver, Compilation compilation)
+    {
+        var edited = compilation.AddSyntaxTrees(
+            CSharpSyntaxTree.ParseText("namespace Other { internal sealed class Unrelated { } }"));
+
+        var reasons = driver
+            .RunGenerators(edited)
+            .GetRunResult()
+            .Results[0]
+            .TrackedSteps["ViewLocatorTargets"]
+            .SelectMany(step => step.Outputs)
+            .Select(output => output.Reason);
+
+        Assert.That(
+            reasons,
+            Has.All.AnyOf(IncrementalStepRunReason.Cached, IncrementalStepRunReason.Unchanged),
+            "Target step should be cached across an unrelated edit.");
     }
 
     private static IReadOnlyList<MetadataReference> BuildReferences()
@@ -50,4 +74,16 @@ internal static class GeneratorTestHelper
 
         return paths.Values.Select(path => (MetadataReference) MetadataReference.CreateFromFile(path)).ToList();
     }
+
+    private static CSharpCompilation CreateCompilation(string source) =>
+        CSharpCompilation.Create(
+            "Tests",
+            [CSharpSyntaxTree.ParseText(source)],
+            References,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+    private static GeneratorDriver CreateDriver() =>
+        CSharpGeneratorDriver.Create(
+            generators: [new ViewLocatorGenerator().AsSourceGenerator()],
+            driverOptions: new GeneratorDriverOptions(default, trackIncrementalGeneratorSteps: true));
 }

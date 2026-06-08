@@ -93,5 +93,16 @@ folder, named `<ProjectUnderTest>.UnitTests`. Follow AAA — separate the sectio
   `[SuppressMessage("ReSharper", "InconsistentNaming")]` and **not** `sealed` (nested classes inherit it).
 - Nested classes group tests by method: `When_<MethodName>_Is_Called` (e.g. `When_Build_Is_Called`), inheriting the outer class.
 - Test methods describe behavior with a lowercase `It_` prefix (e.g. `It_returns_the_resolved_view`).
-- Generator tests run the `CSharpGeneratorDriver` and assert the emitted source + diagnostics, plus an
-  incrementality check (run twice with `trackIncrementalGeneratorSteps`, assert cached).
+- Generator tests go through `GeneratorTestHelper.Run`, which runs the `CSharpGeneratorDriver` and on **every**
+  call asserts the generated code compiles (no errors) and that the `ViewLocatorTargets` step is cached across an
+  unrelated edit (incrementality). Mirroring viceroypenguin: snapshot **emitted source only** with **Verify**
+  (`Verify.NUnit` + `Verify.SourceGenerators`) for the happy-path cases; assert **diagnostics inline by id**
+  (`driver.DiagnosticIds()`) for skip/error cases rather than snapshotting them. `.verified.*` snapshots live in
+  `Snapshots/` (committed); `*.received.*` are git-ignored. `ModuleInitializer` wires
+  `VerifySourceGenerators.Initialize()`, the `Snapshots/` path, and `AutoVerify(includeBuildServer: false)` so a
+  changed snapshot is auto-accepted locally (the diff is the review) but still fails on CI.
+- Verify.NUnit's implicit `using static VerifyNUnit.Verifier` is removed in the test csproj (it shadows NUnit's
+  `Throws`); import it explicitly where needed.
+- The package pins `Microsoft.CodeAnalysis.CSharp` to the **4.8** host floor (matching the `roslyn4.8` pack
+  folder); the test project bumps it via `VersionOverride` to exercise the generator against a newer Roslyn
+  without raising that floor.
