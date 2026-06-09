@@ -2,8 +2,9 @@
 
   <PropertyGroup>
     <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Description>A compile-time, AOT/trim-safe Avalonia ViewLocator. A Roslyn source generator maps XxxViewModel to XxxView by same-namespace naming convention and resolves the view from System.IServiceProvider — no reflection, no hand-maintained map. Mark a partial class with [GenerateViewLocator] and the IDataTemplate is generated for you.</Description>
+    <Description>A compile-time, AOT/trim-safe Avalonia ViewLocator. A Roslyn source generator pairs each XxxViewModel with its XxxView by naming convention (same namespace, a ViewModels/Views split, or an assembly-wide search) — with a [View] override — and resolves the view from System.IServiceProvider, with no reflection and no hand-maintained map. Mark a partial class with [GenerateViewLocator] and the IDataTemplate is generated for you.</Description>
     <PackageTags>avalonia;viewlocator;mvvm;source-generator;aot;trimming;datatemplate</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>ccswe-logo.png</PackageIcon>
@@ -24,5 +25,10 @@
     <None Include="README.md" Pack="true" PackagePath="/" />
     <None Include="ccswe-logo.png" Pack="true" PackagePath="/" />
   </ItemGroup>
+
+  <Target Name="EnsureGeneratorAnalyzerPacked" BeforeTargets="GenerateNuspec">
+    <Error Condition="!Exists('..\CCSWE.Avalonia.ViewLocator.Generator\bin\$(Configuration)\netstandard2.0\CCSWE.Avalonia.ViewLocator.Generator.dll')"
+           Text="The generator analyzer assembly was not found. Build CCSWE.Avalonia.ViewLocator.Generator (or the whole solution) before packing so the analyzer is included." />
+  </Target>
 
 </Project>
