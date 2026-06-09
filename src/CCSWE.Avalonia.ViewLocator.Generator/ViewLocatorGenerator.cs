@@ -279,7 +279,7 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
         builder.AppendLine("        global::CCSWE.Avalonia.ViewLocator.ViewLocatorResolver.Build(data, _services, GetViewType);");
         builder.AppendLine();
         builder.AppendLine(target.ViewModelBaseFullyQualified is { } viewModelBase
-            ? $"    public bool Match(object? data) => data is {viewModelBase};"
+            ? $"    public bool Match(object? data) => data is {viewModelBase} && GetViewType(data.GetType()) is not null;"
             : "    public bool Match(object? data) => data is not null && GetViewType(data.GetType()) is not null;");
         builder.AppendLine();
         builder.AppendLine("    private static global::System.Type? GetViewType(global::System.Type viewModelType)");
