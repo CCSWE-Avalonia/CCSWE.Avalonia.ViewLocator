@@ -33,7 +33,7 @@ internal static class Diagnostics
     public static readonly DiagnosticDescriptor NoMappings = new(
         "CAVL0003",
         "No view-model/view pairs found",
-        "No 'XxxViewModel' types with a matching 'XxxView' deriving from Control were found for '{0}'",
+        "No 'FooViewModel' types with a matching 'FooView' deriving from Control were found for '{0}'",
         Category,
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);

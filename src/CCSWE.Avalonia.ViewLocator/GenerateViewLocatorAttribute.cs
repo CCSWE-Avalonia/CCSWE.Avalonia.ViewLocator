@@ -5,7 +5,7 @@ namespace CCSWE.Avalonia.ViewLocator;
 
 /// <summary>
 /// Marks a partial class for which the view-locator source generator emits an Avalonia <c>IDataTemplate</c>
-/// implementation mapping each <c>XxxViewModel</c> to its <c>XxxView</c> by naming convention, or by an explicit
+/// implementation mapping each <c>FooViewModel</c> to its <c>FooView</c> by naming convention, or by an explicit
 /// <c>[View]</c> attribute on the view model.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
