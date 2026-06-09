@@ -25,6 +25,21 @@ internal static class GeneratorTestHelper
         return driver;
     }
 
+    public static GeneratorDriver RunWithoutAvalonia(string source)
+    {
+        var references = References
+            .Where(reference => !Path.GetFileName(reference.Display ?? string.Empty).StartsWith("Avalonia", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var compilation = CSharpCompilation.Create(
+            "Tests", [CSharpSyntaxTree.ParseText(source)], references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        return CreateDriver().RunGenerators(compilation);
+    }
+
+    public static string SeverityOf(this GeneratorDriver driver, string id) =>
+        driver.GetRunResult().Diagnostics.First(diagnostic => diagnostic.Id == id).Severity.ToString();
+
     private static void AssertGeneratedCodeCompiles(Compilation compilation) =>
         Assert.That(
             compilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error),

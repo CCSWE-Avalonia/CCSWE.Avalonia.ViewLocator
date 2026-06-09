@@ -332,6 +332,107 @@ public class ViewLocatorGeneratorTests
                 """));
 
         [Test]
+        public void It_reports_diagnostics_at_the_expected_severity()
+        {
+            var notPartial = GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                [GenerateViewLocator(typeof(ViewModelBase))]
+                public class AppViewLocator;
+                """);
+
+            var noMappings = GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                public sealed class LonelyViewModel : ViewModelBase;
+                [GenerateViewLocator(typeof(ViewModelBase))]
+                public partial class AppViewLocator;
+                """);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(notPartial.SeverityOf("CAVL0001"), Is.EqualTo("Error"));
+                Assert.That(noMappings.SeverityOf("CAVL0003"), Is.EqualTo("Warning"));
+            });
+        }
+
+        [Test]
+        public void It_reports_an_error_when_avalonia_is_not_referenced()
+        {
+            var driver = GeneratorTestHelper.RunWithoutAvalonia(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                [GenerateViewLocator(typeof(ViewModelBase))]
+                public partial class AppViewLocator;
+                """);
+
+            Assert.That(driver.DiagnosticIds(), Does.Contain("CAVL0002"));
+        }
+
+        [Test]
+        public void It_prefers_the_views_namespace_over_an_assembly_wide_match()
+        {
+            var driver = GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp.ViewModels
+                {
+                    public abstract class ViewModelBase;
+                    public sealed class ItemViewModel : ViewModelBase;
+                }
+                namespace MyApp.Views
+                {
+                    public sealed class ItemView : global::Avalonia.Controls.UserControl;
+                }
+                namespace MyApp.Other
+                {
+                    public sealed class ItemView : global::Avalonia.Controls.UserControl;
+                }
+                namespace MyApp
+                {
+                    [GenerateViewLocator(typeof(global::MyApp.ViewModels.ViewModelBase))]
+                    public partial class AppViewLocator;
+                }
+                """);
+
+            Assert.That(driver.GeneratedSource(), Does.Contain("return typeof(global::MyApp.Views.ItemView);"));
+            Assert.That(driver.DiagnosticIds(), Does.Not.Contain("CAVL0004"));
+        }
+
+        [Test]
+        public void It_honors_the_view_attribute_across_namespaces_and_without_a_suffix()
+        {
+            var driver = GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp.Screens
+                {
+                    public sealed class Dashboard : global::Avalonia.Controls.UserControl;
+                }
+                namespace MyApp
+                {
+                    public abstract class ViewModelBase;
+                    [View(typeof(global::MyApp.Screens.Dashboard))]
+                    public sealed class Home : ViewModelBase;
+                    [GenerateViewLocator(typeof(ViewModelBase))]
+                    public partial class AppViewLocator;
+                }
+                """);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(driver.GeneratedSource(), Does.Contain("if (viewModelType == typeof(global::MyApp.Home))"));
+                Assert.That(driver.GeneratedSource(), Does.Contain("return typeof(global::MyApp.Screens.Dashboard);"));
+            });
+        }
+
+        [Test]
         public void It_reports_an_error_when_the_locator_class_is_generic()
         {
             var driver = GeneratorTestHelper.Run(
