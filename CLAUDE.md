@@ -29,9 +29,9 @@ a base. The map is `typeof(...) == typeof(...)` (AOT/trim-safe); view resolution
   — building against newer Roslyn than the host IDE makes the analyzer silently not load; the
   `analyzers/dotnet/roslyn4.8/cs` pack folder matches the pin. `Microsoft.CodeAnalysis.Analyzers` lints the generator.
   `Meziantou.Polyfill` + `Microsoft.Bcl.HashCode` enable modern C# on netstandard2.0.
-- Pipeline: `ForAttributeWithMetadataName` + a static parser; models are equatable `record`s of
-  `string`/`bool`/`EquatableReadOnlyList<T>` only (never `ISymbol`/`Compilation`); `.WithTrackingName(...)` on each
-  step; emit with a `StringBuilder`.
+- Pipeline: `ForAttributeWithMetadataName` targets + a `CompilationProvider.Select` that resolves the assembly
+  once into an equatable model (`record`s of `string`/`bool`/`EquatableReadOnlyList<T>`, never
+  `ISymbol`/`Compilation`); `.WithTrackingName(...)` per step; emit with a `StringBuilder`.
 - The runtime/package bundles the analyzer via `<ProjectReference … OutputItemType="Analyzer"
   ReferenceOutputAssembly="false" />` + a `<None Include="…Generator.dll" Pack="true"
   PackagePath="analyzers/dotnet/roslyn4.8/cs" />`.
@@ -94,16 +94,13 @@ folder, named `<ProjectUnderTest>.UnitTests`. Follow AAA — separate the sectio
   `[SuppressMessage("ReSharper", "InconsistentNaming")]` and **not** `sealed` (nested classes inherit it).
 - Nested classes group tests by method: `When_<MethodName>_Is_Called` (e.g. `When_Build_Is_Called`), inheriting the outer class.
 - Test methods describe behavior with a lowercase `It_` prefix (e.g. `It_returns_the_resolved_view`).
-- Generator tests go through `GeneratorTestHelper.Run`, which runs the `CSharpGeneratorDriver` and on **every**
-  call asserts the generated code compiles (no errors) and that the `ViewLocatorTargets` step is cached across an
-  unrelated edit (incrementality). Mirroring viceroypenguin: snapshot **emitted source only** with **Verify**
-  (`Verify.NUnit` + `Verify.SourceGenerators`) for the happy-path cases; assert **diagnostics inline by id**
-  (`driver.DiagnosticIds()`) for skip/error cases rather than snapshotting them. `.verified.*` snapshots live in
-  `Snapshots/` (committed); `*.received.*` are git-ignored. `ModuleInitializer` wires
-  `VerifySourceGenerators.Initialize()`, the `Snapshots/` path, and `AutoVerify(includeBuildServer: false)` so a
-  changed snapshot is auto-accepted locally (the diff is the review) but still fails on CI.
-- Verify.NUnit's implicit `using static VerifyNUnit.Verifier` is removed in the test csproj (it shadows NUnit's
-  `Throws`); import it explicitly where needed.
-- The package pins `Microsoft.CodeAnalysis.CSharp` to the **4.8** host floor (matching the `roslyn4.8` pack
-  folder); the test project bumps it via `VersionOverride` to exercise the generator against a newer Roslyn
-  without raising that floor.
+- Generator tests go through `GeneratorTestHelper.Run`: runs the `CSharpGeneratorDriver`, asserts the generated
+  code compiles, and asserts the `ViewLocatorTargets` and `ViewLocatorMappings` steps stay cached across an
+  unrelated edit. Snapshot emitted source with **Verify** (`Verify.NUnit` + `Verify.SourceGenerators`); assert
+  diagnostics inline by id (`driver.DiagnosticIds()`). `.verified.*` snapshots are committed under `Snapshots/`,
+  `*.received.*` git-ignored; `AutoVerify(includeBuildServer: false)` auto-accepts locally but fails on CI.
+- `Microsoft.CodeAnalysis.CSharp` is pinned to the **4.8** host floor; the test project bumps it via
+  `VersionOverride` to exercise newer Roslyn. Verify.NUnit's implicit `using static VerifyNUnit.Verifier` is
+  removed in the test csproj (it shadows NUnit's `Throws`).
+- Coverage: `coverlet.collector` + `src/coverage.runsettings` (excludes test/generated code), ~99% on
+  hand-written code.
