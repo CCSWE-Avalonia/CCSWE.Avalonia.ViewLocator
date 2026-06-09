@@ -246,5 +246,74 @@ public class ViewLocatorGeneratorTests
             Assert.That(driver.GeneratedSource(), Does.Contain("return typeof(global::MyApp.Features.WidgetView);"));
             Assert.That(driver.DiagnosticIds(), Does.Not.Contain("CAVL0004"));
         }
+
+        [Test]
+        public void It_skips_an_abstract_view()
+        {
+            var driver = GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                public sealed class FooViewModel : ViewModelBase;
+                public abstract class FooView : global::Avalonia.Controls.UserControl;
+                [GenerateViewLocator(typeof(ViewModelBase))]
+                public partial class AppViewLocator;
+                """);
+
+            Assert.That(driver.GeneratedSource(), Does.Not.Contain("typeof(global::MyApp.FooView)"));
+            Assert.That(driver.DiagnosticIds(), Does.Contain("CAVL0003"));
+        }
+
+        [Test]
+        public void It_reports_an_error_when_the_view_attribute_target_is_abstract()
+        {
+            var driver = GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                public abstract class FooView : global::Avalonia.Controls.UserControl;
+                [View(typeof(FooView))]
+                public sealed class FooViewModel : ViewModelBase;
+                [GenerateViewLocator(typeof(ViewModelBase))]
+                public partial class AppViewLocator;
+                """);
+
+            Assert.That(driver.DiagnosticIds(), Does.Contain("CAVL0005"));
+        }
+
+        [Test]
+        public void It_reports_an_error_when_the_locator_class_is_nested()
+        {
+            var driver = GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                public partial class Outer
+                {
+                    [GenerateViewLocator(typeof(ViewModelBase))]
+                    public partial class AppViewLocator;
+                }
+                """);
+
+            Assert.That(driver.DiagnosticIds(), Does.Contain("CAVL0006"));
+        }
+
+        [Test]
+        public void It_reports_an_error_when_the_locator_class_is_generic()
+        {
+            var driver = GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                [GenerateViewLocator(typeof(ViewModelBase))]
+                public partial class AppViewLocator<T>;
+                """);
+
+            Assert.That(driver.DiagnosticIds(), Does.Contain("CAVL0006"));
+        }
     }
 }

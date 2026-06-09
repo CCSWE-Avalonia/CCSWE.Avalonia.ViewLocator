@@ -57,6 +57,8 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
         {
             ClassName = symbol.Name,
             HintName = symbol.ToDisplayString(FullyQualified)[GlobalPrefix.Length..],
+            IsGeneric = !symbol.TypeParameters.IsEmpty,
+            IsNested = symbol.ContainingType is not null,
             IsPartial = declaration.Modifiers.Any(SyntaxKind.PartialKeyword),
             Namespace = symbol.ContainingNamespace.IsGlobalNamespace ? null : symbol.ContainingNamespace.ToDisplayString(),
             ViewModelBaseFullyQualified = viewModelBase,
@@ -71,6 +73,12 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
             return;
         }
 
+        if (target.IsGeneric || target.IsNested)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(Diagnostics.UnsupportedLocator, Location.None, target.ClassName));
+            return;
+        }
+
         var controlSymbol = compilation.GetTypeByMetadataName(ControlMetadataName);
         if (controlSymbol is null)
         {
@@ -82,10 +90,10 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
             ? compilation.GetTypeByMetadataName(baseName[GlobalPrefix.Length..])
             : null;
 
-        // Single pass: index every candidate view (Control-derived) by simple name for the assembly-wide
-        // fallback, and collect candidate view models (suffix convention or an explicit [View]).
+        // Single pass: index every instantiable view (concrete Control-derived) by simple name for the
+        // assembly-wide fallback, and collect candidate view models (suffix convention or an explicit [View]).
         var viewsByName = new Dictionary<string, List<INamedTypeSymbol>>();
-        var viewModels = new List<INamedTypeSymbol>();
+        var viewModels = new List<(INamedTypeSymbol ViewModel, INamedTypeSymbol? ExplicitView)>();
 
         foreach (var type in EnumerateTypes(compilation.Assembly.GlobalNamespace))
         {
@@ -96,12 +104,16 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
 
             if (InheritsOrEquals(type, controlSymbol))
             {
-                if (!viewsByName.TryGetValue(type.Name, out var views))
+                if (!type.IsAbstract && !type.IsStatic)
                 {
-                    viewsByName[type.Name] = views = new List<INamedTypeSymbol>();
+                    if (!viewsByName.TryGetValue(type.Name, out var views))
+                    {
+                        viewsByName[type.Name] = views = new List<INamedTypeSymbol>();
+                    }
+
+                    views.Add(type);
                 }
 
-                views.Add(type);
                 continue;
             }
 
@@ -111,16 +123,17 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (HasExplicitView(type) || EndsWithViewModelSuffix(type))
+            TryGetExplicitView(type, out var explicitView);
+            if (explicitView is not null || EndsWithViewModelSuffix(type))
             {
-                viewModels.Add(type);
+                viewModels.Add((type, explicitView));
             }
         }
 
         var pairs = new List<(string ViewModel, string View)>();
-        foreach (var viewModel in viewModels)
+        foreach (var (viewModel, explicitView) in viewModels)
         {
-            if (ResolveView(context, compilation, controlSymbol, viewsByName, viewModel) is { } view)
+            if (ResolveView(context, compilation, controlSymbol, viewsByName, viewModel, explicitView) is { } view)
             {
                 pairs.Add((viewModel.ToDisplayString(FullyQualified), view));
             }
@@ -139,14 +152,13 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
     private static bool EndsWithViewModelSuffix(INamedTypeSymbol type) =>
         type.Name.Length > ViewModelSuffix.Length && type.Name.EndsWith(ViewModelSuffix, StringComparison.Ordinal);
 
-    private static bool HasExplicitView(INamedTypeSymbol type) => TryGetExplicitView(type, out _);
-
     private static INamedTypeSymbol? LookupView(
         Compilation compilation, INamedTypeSymbol controlSymbol, string? @namespace, string viewName)
     {
         var metadataName = string.IsNullOrEmpty(@namespace) ? viewName : @namespace + "." + viewName;
 
-        return compilation.GetTypeByMetadataName(metadataName) is { } view && InheritsOrEquals(view, controlSymbol)
+        return compilation.GetTypeByMetadataName(metadataName) is { IsAbstract: false } view
+            && InheritsOrEquals(view, controlSymbol)
             ? view
             : null;
     }
@@ -156,20 +168,22 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
         Compilation compilation,
         INamedTypeSymbol controlSymbol,
         Dictionary<string, List<INamedTypeSymbol>> viewsByName,
-        INamedTypeSymbol viewModel)
+        INamedTypeSymbol viewModel,
+        INamedTypeSymbol? explicitView)
     {
         // Tier 0 — explicit [View(typeof(...))] override; bypasses all conventions.
-        if (TryGetExplicitView(viewModel, out var declared))
+        if (explicitView is not null)
         {
-            if (!InheritsOrEquals(declared!, controlSymbol))
+            if (explicitView.IsAbstract || explicitView.IsUnboundGenericType
+                || !InheritsOrEquals(explicitView, controlSymbol))
             {
                 context.ReportDiagnostic(Diagnostic.Create(
                     Diagnostics.InvalidExplicitView, Location.None,
-                    declared!.ToDisplayString(FullyQualified), viewModel.ToDisplayString(FullyQualified)));
+                    explicitView.ToDisplayString(FullyQualified), viewModel.ToDisplayString(FullyQualified)));
                 return null;
             }
 
-            return declared!.ToDisplayString(FullyQualified);
+            return explicitView.ToDisplayString(FullyQualified);
         }
 
         if (!EndsWithViewModelSuffix(viewModel))

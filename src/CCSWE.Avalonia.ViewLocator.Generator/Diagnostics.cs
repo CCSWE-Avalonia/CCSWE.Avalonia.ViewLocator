@@ -24,8 +24,8 @@ internal static class Diagnostics
 
     public static readonly DiagnosticDescriptor InvalidExplicitView = new(
         "CAVL0005",
-        "Explicit view type is not a control",
-        "View type '{0}' declared by [View] on '{1}' does not derive from 'Avalonia.Controls.Control'",
+        "Explicit view type is invalid",
+        "View type '{0}' declared by [View] on '{1}' must be a non-abstract, non-generic type deriving from 'Avalonia.Controls.Control'",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -42,6 +42,14 @@ internal static class Diagnostics
         "CAVL0001",
         "View locator class must be partial",
         "Class '{0}' marked with [GenerateViewLocator] must be partial",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedLocator = new(
+        "CAVL0006",
+        "View locator class is not supported",
+        "Class '{0}' marked with [GenerateViewLocator] must be a non-generic, non-nested class",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
