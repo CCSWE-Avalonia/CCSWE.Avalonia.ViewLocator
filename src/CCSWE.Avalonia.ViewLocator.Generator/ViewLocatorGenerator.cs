@@ -8,7 +8,7 @@ namespace CCSWE.Avalonia.ViewLocator.Generator;
 
 /// <summary>
 /// Emits an Avalonia <c>IDataTemplate</c> implementation for each partial class marked with
-/// <c>[GenerateViewLocator]</c>. Each <c>XxxViewModel</c> is paired with an <c>XxxView</c> deriving from
+/// <c>[GenerateViewLocator]</c>. Each <c>FooViewModel</c> is paired with a <c>FooView</c> deriving from
 /// <c>Avalonia.Controls.Control</c>, resolved by an explicit <c>[View]</c> attribute, then by naming
 /// convention (same namespace, then a <c>ViewModels</c>→<c>Views</c> namespace), then by an assembly-wide
 /// search.
