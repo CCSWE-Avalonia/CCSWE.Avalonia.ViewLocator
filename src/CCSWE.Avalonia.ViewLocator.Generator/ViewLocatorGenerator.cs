@@ -37,8 +37,12 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
             .Where(static target => target is not null)
             .WithTrackingName("ViewLocatorTargets");
 
+        var mappings = context.CompilationProvider
+            .Select(static (compilation, _) => Resolve(compilation))
+            .WithTrackingName("ViewLocatorMappings");
+
         context.RegisterSourceOutput(
-            targets.Combine(context.CompilationProvider),
+            targets.Combine(mappings),
             static (spc, pair) => Execute(spc, pair.Left!, pair.Right));
     }
 
@@ -65,7 +69,7 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
         };
     }
 
-    private static void Execute(SourceProductionContext context, ViewLocatorTarget target, Compilation compilation)
+    private static void Execute(SourceProductionContext context, ViewLocatorTarget target, ViewLocatorMappings mappings)
     {
         if (!target.IsPartial)
         {
@@ -79,21 +83,52 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
             return;
         }
 
-        var controlSymbol = compilation.GetTypeByMetadataName(ControlMetadataName);
-        if (controlSymbol is null)
+        if (!mappings.AvaloniaReferenced)
         {
             context.ReportDiagnostic(Diagnostic.Create(Diagnostics.AvaloniaNotReferenced, Location.None));
             return;
         }
 
-        var viewModelBase = target.ViewModelBaseFullyQualified is { } baseName
-            ? compilation.GetTypeByMetadataName(baseName[GlobalPrefix.Length..])
-            : null;
+        var pairs = new List<(string ViewModel, string View)>();
+        foreach (var mapping in mappings.ViewModels)
+        {
+            if (target.ViewModelBaseFullyQualified is { } baseName && !mapping.BaseChain.Contains(baseName))
+            {
+                continue;
+            }
 
-        // Single pass: index every instantiable view (concrete Control-derived) by simple name for the
-        // assembly-wide fallback, and collect candidate view models (suffix convention or an explicit [View]).
+            if (mapping.Diagnostic is { } diagnostic)
+            {
+                context.ReportDiagnostic(CreateResolutionDiagnostic(diagnostic));
+            }
+            else if (mapping.ViewFullName is { } view)
+            {
+                pairs.Add((mapping.ViewModelFullName, view));
+            }
+        }
+
+        if (pairs.Count == 0)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(Diagnostics.NoMappings, Location.None, target.ClassName));
+        }
+
+        pairs.Sort(static (a, b) => string.CompareOrdinal(a.ViewModel, b.ViewModel));
+
+        context.AddSource($"{target.HintName}.ViewLocator.g.cs", SourceText.From(Emit(target, pairs), Encoding.UTF8));
+    }
+
+    private static ViewLocatorMappings Resolve(Compilation compilation)
+    {
+        var controlSymbol = compilation.GetTypeByMetadataName(ControlMetadataName);
+        if (controlSymbol is null)
+        {
+            return new ViewLocatorMappings { AvaloniaReferenced = false, ViewModels = default };
+        }
+
+        // Index every instantiable view (concrete Control-derived) by simple name for the assembly-wide
+        // fallback, and collect candidate view models (suffix convention or an explicit [View]).
         var viewsByName = new Dictionary<string, List<INamedTypeSymbol>>();
-        var viewModels = new List<(INamedTypeSymbol ViewModel, INamedTypeSymbol? ExplicitView)>();
+        var candidates = new List<(INamedTypeSymbol ViewModel, INamedTypeSymbol? ExplicitView)>();
 
         foreach (var type in EnumerateTypes(compilation.Assembly.GlobalNamespace))
         {
@@ -117,8 +152,7 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (type.IsAbstract || type.IsStatic
-                || (viewModelBase is not null && !InheritsOrEquals(type, viewModelBase)))
+            if (type.IsAbstract || type.IsStatic)
             {
                 continue;
             }
@@ -126,45 +160,33 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
             TryGetExplicitView(type, out var explicitView);
             if (explicitView is not null || EndsWithViewModelSuffix(type))
             {
-                viewModels.Add((type, explicitView));
+                candidates.Add((type, explicitView));
             }
         }
 
-        var pairs = new List<(string ViewModel, string View)>();
-        foreach (var (viewModel, explicitView) in viewModels)
+        var viewModels = new List<ViewModelMapping>();
+        foreach (var (viewModel, explicitView) in candidates)
         {
-            if (ResolveView(context, compilation, controlSymbol, viewsByName, viewModel, explicitView) is { } view)
+            var (view, diagnostic) = ResolveOne(compilation, controlSymbol, viewsByName, viewModel, explicitView);
+            viewModels.Add(new ViewModelMapping
             {
-                pairs.Add((viewModel.ToDisplayString(FullyQualified), view));
-            }
+                BaseChain = BuildBaseChain(viewModel).ToEquatableReadOnlyList(),
+                Diagnostic = diagnostic,
+                ViewFullName = view,
+                ViewModelFullName = viewModel.ToDisplayString(FullyQualified),
+            });
         }
 
-        if (pairs.Count == 0)
+        viewModels.Sort(static (a, b) => string.CompareOrdinal(a.ViewModelFullName, b.ViewModelFullName));
+
+        return new ViewLocatorMappings
         {
-            context.ReportDiagnostic(Diagnostic.Create(Diagnostics.NoMappings, Location.None, target.ClassName));
-        }
-
-        pairs.Sort(static (a, b) => string.CompareOrdinal(a.ViewModel, b.ViewModel));
-
-        context.AddSource($"{target.HintName}.ViewLocator.g.cs", SourceText.From(Emit(target, pairs), Encoding.UTF8));
+            AvaloniaReferenced = true,
+            ViewModels = viewModels.ToEquatableReadOnlyList(),
+        };
     }
 
-    private static bool EndsWithViewModelSuffix(INamedTypeSymbol type) =>
-        type.Name.Length > ViewModelSuffix.Length && type.Name.EndsWith(ViewModelSuffix, StringComparison.Ordinal);
-
-    private static INamedTypeSymbol? LookupView(
-        Compilation compilation, INamedTypeSymbol controlSymbol, string? @namespace, string viewName)
-    {
-        var metadataName = string.IsNullOrEmpty(@namespace) ? viewName : @namespace + "." + viewName;
-
-        return compilation.GetTypeByMetadataName(metadataName) is { IsAbstract: false } view
-            && InheritsOrEquals(view, controlSymbol)
-            ? view
-            : null;
-    }
-
-    private static string? ResolveView(
-        SourceProductionContext context,
+    private static (string? View, ResolutionDiagnostic? Diagnostic) ResolveOne(
         Compilation compilation,
         INamedTypeSymbol controlSymbol,
         Dictionary<string, List<INamedTypeSymbol>> viewsByName,
@@ -177,18 +199,23 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
             if (explicitView.IsAbstract || explicitView.IsUnboundGenericType
                 || !InheritsOrEquals(explicitView, controlSymbol))
             {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.InvalidExplicitView, Location.None,
-                    explicitView.ToDisplayString(FullyQualified), viewModel.ToDisplayString(FullyQualified)));
-                return null;
+                return (null, new ResolutionDiagnostic
+                {
+                    Arguments = new[]
+                    {
+                        explicitView.ToDisplayString(FullyQualified),
+                        viewModel.ToDisplayString(FullyQualified),
+                    }.ToEquatableReadOnlyList(),
+                    Kind = ResolutionDiagnosticKind.InvalidExplicitView,
+                });
             }
 
-            return explicitView.ToDisplayString(FullyQualified);
+            return (explicitView.ToDisplayString(FullyQualified), null);
         }
 
         if (!EndsWithViewModelSuffix(viewModel))
         {
-            return null;
+            return (null, null);
         }
 
         var viewName = viewModel.Name[..^ViewModelSuffix.Length] + ViewSuffix;
@@ -204,19 +231,52 @@ public sealed class ViewLocatorGenerator : IIncrementalGenerator
         }
 
         // Tier 3 — assembly-wide search by simple name; ambiguity is a diagnostic, never a guess.
-        if (view is null && viewsByName.TryGetValue(viewName, out var candidates))
+        if (view is null && viewsByName.TryGetValue(viewName, out var matches))
         {
-            if (candidates.Count > 1)
+            if (matches.Count > 1)
             {
-                context.ReportDiagnostic(Diagnostic.Create(
-                    Diagnostics.AmbiguousView, Location.None, viewName, viewModel.ToDisplayString(FullyQualified)));
-                return null;
+                return (null, new ResolutionDiagnostic
+                {
+                    Arguments = new[] { viewName, viewModel.ToDisplayString(FullyQualified) }.ToEquatableReadOnlyList(),
+                    Kind = ResolutionDiagnosticKind.AmbiguousView,
+                });
             }
 
-            view = candidates[0];
+            view = matches[0];
         }
 
-        return view?.ToDisplayString(FullyQualified);
+        return (view?.ToDisplayString(FullyQualified), null);
+    }
+
+    private static IEnumerable<string> BuildBaseChain(INamedTypeSymbol type)
+    {
+        for (INamedTypeSymbol? current = type; current is not null; current = current.BaseType)
+        {
+            yield return current.ToDisplayString(FullyQualified);
+        }
+    }
+
+    private static Diagnostic CreateResolutionDiagnostic(ResolutionDiagnostic diagnostic)
+    {
+        var descriptor = diagnostic.Kind == ResolutionDiagnosticKind.AmbiguousView
+            ? Diagnostics.AmbiguousView
+            : Diagnostics.InvalidExplicitView;
+
+        return Diagnostic.Create(descriptor, Location.None, diagnostic.Arguments.Cast<object?>().ToArray());
+    }
+
+    private static bool EndsWithViewModelSuffix(INamedTypeSymbol type) =>
+        type.Name.Length > ViewModelSuffix.Length && type.Name.EndsWith(ViewModelSuffix, StringComparison.Ordinal);
+
+    private static INamedTypeSymbol? LookupView(
+        Compilation compilation, INamedTypeSymbol controlSymbol, string? @namespace, string viewName)
+    {
+        var metadataName = string.IsNullOrEmpty(@namespace) ? viewName : @namespace + "." + viewName;
+
+        return compilation.GetTypeByMetadataName(metadataName) is { IsAbstract: false } view
+            && InheritsOrEquals(view, controlSymbol)
+            ? view
+            : null;
     }
 
     private static string? SwapViewModelsSegment(string? @namespace)

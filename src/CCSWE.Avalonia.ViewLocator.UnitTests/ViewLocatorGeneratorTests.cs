@@ -302,6 +302,36 @@ public class ViewLocatorGeneratorTests
         }
 
         [Test]
+        public Task It_maps_multiple_view_models_in_sorted_order() =>
+            Verify(GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                public sealed class ZebraViewModel : ViewModelBase;
+                public sealed class ZebraView : global::Avalonia.Controls.UserControl;
+                public sealed class AlphaViewModel : ViewModelBase;
+                public sealed class AlphaView : global::Avalonia.Controls.UserControl;
+                [GenerateViewLocator(typeof(ViewModelBase))]
+                public partial class AppViewLocator;
+                """));
+
+        [Test]
+        public Task It_generates_independent_locators_for_multiple_targets() =>
+            Verify(GeneratorTestHelper.Run(
+                """
+                using CCSWE.Avalonia.ViewLocator;
+                namespace MyApp;
+                public abstract class ViewModelBase;
+                public sealed class FooViewModel : ViewModelBase;
+                public sealed class FooView : global::Avalonia.Controls.UserControl;
+                [GenerateViewLocator(typeof(ViewModelBase))]
+                public partial class FirstViewLocator;
+                [GenerateViewLocator]
+                public partial class SecondViewLocator;
+                """));
+
+        [Test]
         public void It_reports_an_error_when_the_locator_class_is_generic()
         {
             var driver = GeneratorTestHelper.Run(
