@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using JetBrains.Annotations;
 
 namespace CCSWE.Avalonia.ViewLocator;
@@ -9,6 +10,7 @@ namespace CCSWE.Avalonia.ViewLocator;
 /// fallback; it must derive from <c>Avalonia.Controls.Control</c>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+[ExcludeFromCodeCoverage]
 [PublicAPI]
 public sealed class ViewAttribute : Attribute
 {

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using JetBrains.Annotations;
 
 namespace CCSWE.Avalonia.ViewLocator;
@@ -8,6 +9,7 @@ namespace CCSWE.Avalonia.ViewLocator;
 /// <c>[View]</c> attribute on the view model.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
+[ExcludeFromCodeCoverage]
 [PublicAPI]
 public sealed class GenerateViewLocatorAttribute : Attribute
 {
