@@ -1,8 +1,9 @@
 # CCSWE.Avalonia.ViewLocator
 
-A compile-time, AOT/trim-safe Avalonia `ViewLocator`. A Roslyn source generator maps each `XxxViewModel` to its
-`XxxView` **by same-namespace naming convention** and resolves the view from your `IServiceProvider` — no
-reflection, no hand-maintained map.
+A compile-time, AOT/trim-safe Avalonia `ViewLocator`. A Roslyn source generator pairs each `XxxViewModel` with its
+`XxxView` **by naming convention** (same namespace, a `ViewModels`→`Views` namespace, or an assembly-wide search)
+— with a `[View]` override — and resolves the view from your `IServiceProvider` — no reflection, no
+hand-maintained map.
 
 ```csharp
 [GenerateViewLocator(typeof(ViewModelBase))]

@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Project
 
 `CCSWE.Avalonia.ViewLocator` is a compile-time, AOT/trim-safe Avalonia `ViewLocator`: a Roslyn source generator
-maps `XxxViewModel` → `XxxView` by **same-namespace** naming convention and resolves the view from
-`System.IServiceProvider`. See `README.md` for usage. Targets `net10.0` / Avalonia 12.
+maps `XxxViewModel` → `XxxView` by naming convention (explicit `[View]` override → same namespace →
+`ViewModels`→`Views` → assembly-wide fallback) and resolves the view from `System.IServiceProvider`. See
+`README.md` for usage. Targets `net10.0` / Avalonia 12.
 
 ## Architecture — runtime + bundled generator, one package
 
