@@ -1,11 +1,11 @@
-using System;
 using JetBrains.Annotations;
 
 namespace CCSWE.Avalonia.ViewLocator;
 
 /// <summary>
 /// Marks a partial class for which the view-locator source generator emits an Avalonia <c>IDataTemplate</c>
-/// implementation mapping <c>XxxViewModel</c> to <c>XxxView</c> by same-namespace naming convention.
+/// implementation mapping each <c>XxxViewModel</c> to its <c>XxxView</c> by naming convention, or by an explicit
+/// <c>[View]</c> attribute on the view model.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 [PublicAPI]
