@@ -17,8 +17,10 @@ partial class AppViewLocator : global::Avalonia.Controls.Templates.IDataTemplate
 
     private static global::System.Type? GetViewType(global::System.Type viewModelType)
     {
-        if (viewModelType == typeof(global::MyApp.FooViewModel))
-            return typeof(global::MyApp.FooView);
+        if (viewModelType == typeof(global::MyApp.AlphaViewModel))
+            return typeof(global::MyApp.AlphaView);
+        if (viewModelType == typeof(global::MyApp.ZebraViewModel))
+            return typeof(global::MyApp.ZebraView);
         return null;
     }
 }

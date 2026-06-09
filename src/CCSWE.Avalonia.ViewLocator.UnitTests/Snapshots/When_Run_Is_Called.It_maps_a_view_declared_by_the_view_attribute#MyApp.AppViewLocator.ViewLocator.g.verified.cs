@@ -17,8 +17,8 @@ partial class AppViewLocator : global::Avalonia.Controls.Templates.IDataTemplate
 
     private static global::System.Type? GetViewType(global::System.Type viewModelType)
     {
-        if (viewModelType == typeof(global::MyApp.FooViewModel))
-            return typeof(global::MyApp.FooView);
+        if (viewModelType == typeof(global::MyApp.ShellViewModel))
+            return typeof(global::MyApp.ShellScreen);
         return null;
     }
 }

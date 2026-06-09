@@ -13,12 +13,12 @@ partial class AppViewLocator : global::Avalonia.Controls.Templates.IDataTemplate
     public global::Avalonia.Controls.Control? Build(object? data) =>
         global::CCSWE.Avalonia.ViewLocator.ViewLocatorResolver.Build(data, _services, GetViewType);
 
-    public bool Match(object? data) => data is global::MyApp.ViewModelBase && GetViewType(data.GetType()) is not null;
+    public bool Match(object? data) => data is not null && GetViewType(data.GetType()) is not null;
 
     private static global::System.Type? GetViewType(global::System.Type viewModelType)
     {
-        if (viewModelType == typeof(global::MyApp.FooViewModel))
-            return typeof(global::MyApp.FooView);
+        if (viewModelType == typeof(global::MyApp.Features.WidgetViewModel))
+            return typeof(global::MyApp.Controls.WidgetView);
         return null;
     }
 }

@@ -5,9 +5,10 @@
 [![Downloads](https://img.shields.io/nuget/dt/CCSWE.Avalonia.ViewLocator.svg)](https://www.nuget.org/packages/CCSWE.Avalonia.ViewLocator)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 
-A **compile-time, AOT/trim-safe Avalonia `ViewLocator`**. A Roslyn source generator maps each
-`XxxViewModel` to its `XxxView` **by same-namespace naming convention** and resolves the view from your
-`IServiceProvider` — no reflection, and no hand-maintained `Type → Type` map.
+A **compile-time, AOT/trim-safe Avalonia `ViewLocator`**. A Roslyn source generator pairs each
+`XxxViewModel` with its `XxxView` **by naming convention** — with an assembly-wide fallback and an explicit
+`[View]` override — and resolves the view from your `IServiceProvider` — no reflection, and no hand-maintained
+`Type → Type` map.
 
 ```csharp
 [GenerateViewLocator(typeof(ViewModelBase))]
@@ -28,16 +29,32 @@ with your container (e.g. `services.AddTransient<EmulatorView>()`) and they stay
 ## Why
 
 - **No reflection / AOT- and trim-safe** — the map is plain `typeof(...) == typeof(...)`, generated at build time.
-- **No hand-maintained map** — add a `ViewModel`/`View` pair in the same folder and it's wired up automatically.
-- **Feature-first friendly** — maps within a **single namespace** (`MyApp.Emulators.{EmulatorViewModel,EmulatorView}`),
-  not a `ViewModels`→`Views` split.
+- **No hand-maintained map** — add a matching `XxxViewModel`/`XxxView` pair and it's wired up automatically.
+- **Any project layout** — vertical-slice (`MyApp.Emulators.{EmulatorViewModel,EmulatorView}`) *and* the
+  clean-architecture `ViewModels`→`Views` split both work, with an assembly-wide fallback and a `[View]`
+  override for everything else.
 - **DI-resolved views** — uses only `System.IServiceProvider` (no `Microsoft.Extensions.DependencyInjection` dependency).
 
 ## Convention
 
-A class named `XxxViewModel` maps to `XxxView` **in the same namespace**, when that `XxxView` exists and derives
-from `Avalonia.Controls.Control`. Supplying a base type — `[GenerateViewLocator(typeof(ViewModelBase))]` — scopes
-discovery to view models assignable to it and makes `Match` return `data is ViewModelBase`.
+For each `XxxViewModel`, the generator finds a concrete `XxxView` deriving from `Avalonia.Controls.Control`,
+resolved in this order — first match wins:
+
+1. **Explicit override** — `[View(typeof(XxxView))]` on the view model maps it directly, bypassing all
+   conventions. Use it for pairs that don't follow a naming convention — e.g. a `MainWindowViewModel` whose view
+   is `MainWindow`. The declared type must be a concrete (non-abstract) class deriving from `Control`.
+2. **Same namespace** — `XxxView` alongside `XxxViewModel` (vertical slices).
+3. **`ViewModels`→`Views`** — `XxxView` in the sibling namespace formed by replacing a `ViewModels` segment with
+   `Views` (the standard Avalonia MVVM layout).
+4. **Assembly-wide** — any `XxxView` deriving from `Control` anywhere in the assembly. If more than one matches,
+   the pair is skipped with a warning rather than guessed.
+
+Abstract and open-generic views are ignored (they can't be instantiated). The locator class itself must be a
+non-generic, top-level `partial` class.
+
+Supplying a base type — `[GenerateViewLocator(typeof(ViewModelBase))]` — scopes discovery to view models
+assignable to it; `Match` then claims only `ViewModelBase` instances that actually resolve to a view, so it never
+claims data it can't build. Without a base type, every `XxxViewModel` is considered.
 
 ## Install
 

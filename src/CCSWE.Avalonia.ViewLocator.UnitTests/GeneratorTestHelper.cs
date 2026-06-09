@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using CCSWE.Avalonia.ViewLocator.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using NUnit.Framework;
 
 namespace CCSWE.Avalonia.ViewLocator.UnitTests;
 
@@ -25,10 +20,25 @@ internal static class GeneratorTestHelper
         var driver = CreateDriver().RunGeneratorsAndUpdateCompilation(compilation, out var output, out _);
 
         AssertGeneratedCodeCompiles(output);
-        AssertTargetStepIsCachedAcrossUnrelatedEdit(driver, compilation);
+        AssertStepsAreCachedAcrossUnrelatedEdit(driver, compilation);
 
         return driver;
     }
+
+    public static GeneratorDriver RunWithoutAvalonia(string source)
+    {
+        var references = References
+            .Where(reference => !Path.GetFileName(reference.Display ?? string.Empty).StartsWith("Avalonia", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var compilation = CSharpCompilation.Create(
+            "Tests", [CSharpSyntaxTree.ParseText(source)], references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        return CreateDriver().RunGenerators(compilation);
+    }
+
+    public static string SeverityOf(this GeneratorDriver driver, string id) =>
+        driver.GetRunResult().Diagnostics.First(diagnostic => diagnostic.Id == id).Severity.ToString();
 
     private static void AssertGeneratedCodeCompiles(Compilation compilation) =>
         Assert.That(
@@ -36,23 +46,22 @@ internal static class GeneratorTestHelper
             Is.Empty,
             "Generated code should compile without errors.");
 
-    private static void AssertTargetStepIsCachedAcrossUnrelatedEdit(GeneratorDriver driver, Compilation compilation)
+    private static void AssertStepsAreCachedAcrossUnrelatedEdit(GeneratorDriver driver, Compilation compilation)
     {
         var edited = compilation.AddSyntaxTrees(
             CSharpSyntaxTree.ParseText("namespace Other { internal sealed class Unrelated { } }"));
 
-        var reasons = driver
-            .RunGenerators(edited)
-            .GetRunResult()
-            .Results[0]
-            .TrackedSteps["ViewLocatorTargets"]
-            .SelectMany(step => step.Outputs)
-            .Select(output => output.Reason);
+        var trackedSteps = driver.RunGenerators(edited).GetRunResult().Results[0].TrackedSteps;
 
-        Assert.That(
-            reasons,
-            Has.All.AnyOf(IncrementalStepRunReason.Cached, IncrementalStepRunReason.Unchanged),
-            "Target step should be cached across an unrelated edit.");
+        foreach (var step in new[] { "ViewLocatorTargets", "ViewLocatorMappings" })
+        {
+            var reasons = trackedSteps[step].SelectMany(s => s.Outputs).Select(output => output.Reason);
+
+            Assert.That(
+                reasons,
+                Has.All.AnyOf(IncrementalStepRunReason.Cached, IncrementalStepRunReason.Unchanged),
+                $"Step '{step}' should be cached across an unrelated edit.");
+        }
     }
 
     private static IReadOnlyList<MetadataReference> BuildReferences()
