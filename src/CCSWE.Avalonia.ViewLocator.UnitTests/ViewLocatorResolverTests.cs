@@ -1,7 +1,5 @@
-using System;
 using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
-using NUnit.Framework;
 
 namespace CCSWE.Avalonia.ViewLocator.UnitTests;
 

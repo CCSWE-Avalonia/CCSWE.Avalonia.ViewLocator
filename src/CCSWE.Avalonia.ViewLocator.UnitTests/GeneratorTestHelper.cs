@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using CCSWE.Avalonia.ViewLocator.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using NUnit.Framework;
 
 namespace CCSWE.Avalonia.ViewLocator.UnitTests;
 

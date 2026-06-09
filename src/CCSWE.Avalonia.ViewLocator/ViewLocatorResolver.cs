@@ -1,4 +1,3 @@
-using System;
 using Avalonia.Controls;
 using JetBrains.Annotations;
 
