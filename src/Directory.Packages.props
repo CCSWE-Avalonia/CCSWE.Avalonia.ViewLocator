@@ -21,6 +21,6 @@
     <PackageVersion Include="Verify.SourceGenerators" Version="2.5.0" />
   </ItemGroup>
   <ItemGroup>
-    <GlobalPackageReference Include="Meziantou.Polyfill" Version="1.0.148" PrivateAssets="all" />
+    <GlobalPackageReference Include="Meziantou.Polyfill" Version="1.0.151" PrivateAssets="all" />
   </ItemGroup>
 </Project>
