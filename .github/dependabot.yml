@@ -9,6 +9,9 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    ignore:
+      # Pinned to the Roslyn host floor (4.8.0) — see CLAUDE.md. Never auto-update.
+      - dependency-name: "Microsoft.CodeAnalysis.CSharp"
     groups:
       # Avalonia packages are kept in lockstep — update them together in one PR.
       avalonia:
