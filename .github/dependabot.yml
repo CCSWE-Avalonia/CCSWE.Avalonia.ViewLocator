@@ -1,7 +1,7 @@
 version: 2
 updates:
   # NuGet — versions are centrally managed in src/Directory.Packages.props (CPM),
-  # plus the nbgv dotnet tool in /.config/dotnet-tools.json.
+  # plus the dotnet-validate tool in /.config/dotnet-tools.json.
   - package-ecosystem: "nuget"
     directories:
       - "/src"

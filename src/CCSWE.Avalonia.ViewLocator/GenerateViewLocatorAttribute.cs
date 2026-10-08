@@ -13,14 +13,14 @@ namespace CCSWE.Avalonia.ViewLocator;
 [PublicAPI]
 public sealed class GenerateViewLocatorAttribute : Attribute
 {
-    /// <summary>Creates the attribute with no base-type scoping (convention-only discovery).</summary>
+    /// <summary>Creates the attribute with no base-type scoping.</summary>
     public GenerateViewLocatorAttribute()
     {
     }
 
     /// <summary>
-    /// Creates the attribute scoping discovery to view models assignable to <paramref name="viewModelBaseType"/>;
-    /// the generated <c>Match</c> returns whether the data is an instance of that type.
+    /// Creates the attribute scoping discovery to view models deriving from <paramref name="viewModelBaseType"/>;
+    /// the generated <c>Match</c> returns whether the data is an instance of that type with a mapped view.
     /// </summary>
     public GenerateViewLocatorAttribute(Type viewModelBaseType) => ViewModelBaseType = viewModelBaseType;
 

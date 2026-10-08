@@ -53,7 +53,7 @@ Abstract and open-generic views are ignored (they can't be instantiated). The lo
 non-generic, top-level `partial` class.
 
 Supplying a base type — `[GenerateViewLocator(typeof(ViewModelBase))]` — scopes discovery to view models
-assignable to it; `Match` then claims only `ViewModelBase` instances that actually resolve to a view, so it never
+deriving from it; `Match` then claims only `ViewModelBase` instances that actually resolve to a view, so it never
 claims data it can't build. Without a base type, every `FooViewModel` is considered.
 
 ## Install
