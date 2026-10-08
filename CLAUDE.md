@@ -7,11 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `CCSWE.Avalonia.ViewLocator` is a compile-time, AOT/trim-safe Avalonia `ViewLocator`: a Roslyn source generator
 maps `FooViewModel` → `FooView` by naming convention (explicit `[View]` override → same namespace →
 `ViewModels`→`Views` → assembly-wide fallback) and resolves the view from `System.IServiceProvider`. See
-`README.md` for usage. Targets `net10.0` / Avalonia 12.
+`README.md` for usage. Target framework: `src/Directory.Build.props`; Avalonia: `src/Directory.Packages.props`.
 
 ## Architecture — runtime + bundled generator, one package
 
-- **`CCSWE.Avalonia.ViewLocator`** (runtime, net10.0): the public `GenerateViewLocatorAttribute` and the static
+- **`CCSWE.Avalonia.ViewLocator`** (runtime): the public `GenerateViewLocatorAttribute` / `ViewAttribute` and the static
   `ViewLocatorResolver` (the shared `Build` logic). References `Avalonia` only. This project IS the NuGet package
   and **bundles the generator dll as an analyzer** (`analyzers/dotnet/roslyn4.8/cs`).
 - **`CCSWE.Avalonia.ViewLocator.Generator`** (netstandard2.0): the `IIncrementalGenerator`. Roslyn-only (no
@@ -28,7 +28,7 @@ a base. The map is `typeof(...) == typeof(...)` (AOT/trim-safe); view resolution
   `IncludeBuildOutput=false`, `IsPackable=false`. Pin `Microsoft.CodeAnalysis.CSharp` **4.8.0** (`PrivateAssets=all`)
   — building against newer Roslyn than the host IDE makes the analyzer silently not load; the
   `analyzers/dotnet/roslyn4.8/cs` pack folder matches the pin. `Microsoft.CodeAnalysis.Analyzers` lints the generator.
-  `Meziantou.Polyfill` + `Microsoft.Bcl.HashCode` enable modern C# on netstandard2.0.
+  `Meziantou.Polyfill` enables modern C# on netstandard2.0.
 - Pipeline: `ForAttributeWithMetadataName` targets + a `CompilationProvider.Select` that resolves the assembly
   once into an equatable model (`record`s of `string`/`bool`/`EquatableReadOnlyList<T>`, never
   `ISymbol`/`Compilation`); `.WithTrackingName(...)` per step; emit with a `StringBuilder`.
@@ -86,7 +86,7 @@ types go at the bottom of the file.
 
 ## Testing
 
-NUnit 4. Test project sits physically under `src/` (no on-disk `tests/` folder), shown in a `/tests/` solution
+NUnit. Test project sits physically under `src/` (no on-disk `tests/` folder), shown in a `/tests/` solution
 folder, named `<ProjectUnderTest>.UnitTests`. Follow AAA — separate the sections with blank lines, **not** with
 `// Arrange` / `// Act` / `// Assert` comments.
 
@@ -102,5 +102,4 @@ folder, named `<ProjectUnderTest>.UnitTests`. Follow AAA — separate the sectio
 - `Microsoft.CodeAnalysis.CSharp` is pinned to the **4.8** host floor; the test project bumps it via
   `VersionOverride` to exercise newer Roslyn. Verify.NUnit's implicit `using static VerifyNUnit.Verifier` is
   removed in the test csproj (it shadows NUnit's `Throws`).
-- Coverage: `coverlet.collector` + `src/coverage.runsettings` (excludes test/generated code), ~99% on
-  hand-written code.
+- Coverage: `coverlet.collector` + `src/coverage.runsettings` (excludes test/generated code).
